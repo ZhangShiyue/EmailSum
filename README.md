@@ -18,7 +18,7 @@ This repository contains the data and code for the following paper:
 ### Requirements
 
 * Python 3
-* requirements_data.txt
+* requirements.txt
 * Download Avocado Research Email Collection from [LDC](https://catalog.ldc.upenn.edu/LDC2015T03)
 
 ### Avocado
@@ -80,3 +80,48 @@ python anonymize.py
 After this step, you can see all cleaned thread under "W3C_threads/".
 
 
+## Model
+
+### Requirements
+
+* Python 3
+* PyTorch 1.7, transformers==2.11.0
+
+### Test pre-trained models
+
+* Download pre-trained T5 baseline and hierarchical T5 models from [here]()
+
+* Prepare data
+
+After you get "Avocado/exp_data/data_email_short" and "Avocado/exp_data/data_email_long", run 
+```
+python3 data.py  --data_dir Avocado/exp_data/data_email_long --cache_dir train/cache --max_output_length 128  
+python3 data.py  --data_dir Avocado/exp_data/data_email_short --cache_dir train/cache --max_output_length 56  
+
+```
+
+* Test T5 baselines
+```
+python3 run.py --task email_long --data_dir Avocado/exp_data/data_email_long/ --test_only --max_output_length 128
+python3 run.py --task email_short --data_dir Avocado/exp_data/data_email_short/ --test_only --max_output_length 56
+```
+
+* Test hierarchical T5 models
+```
+python3 run.py --task email_long --memory_type ht5 --data_dir Avocado/exp_data/data_email_long/ --test_only --max_output_length 128
+python3 run.py --task email_short --memory_type ht5 --data_dir Avocado/exp_data/data_email_short/ --test_only --max_output_length 56
+```
+
+The testing scores will be saved in best_ckpt_test.json. 
+We also provide best_ckpt_test_old.json that contains our previously tested scores (reported in the paper).
+
+Note that you are likely to get slightly different numbers because we added a few more data
+clean and anonymization rules. Following the steps above, the pre-processed *.source files will be 
+slightly different from the ones we used before.  
+
+### Train
+
+Just drop "--test_only", e.g.,
+```
+python3 run.py --task email_long --memory_type ht5 --data_dir Avocado/exp_data/data_email_long/ --max_output_length 128
+```
