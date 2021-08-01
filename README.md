@@ -15,6 +15,9 @@ This repository contains the data and code for the following paper:
 
 ## Data
 
+We only release the summaries we collected and provide scripts to extract email threads
+from flat email corpus (Avocado or W3C), because Avocado's copyright is protected by Linguistic Data Consortium.
+
 ### Requirements
 
 * Python 3
@@ -25,9 +28,6 @@ This repository contains the data and code for the following paper:
 We collected the summaries of 2,549 Avocado email threads (see Avocado/summaries/EmailSum_data.json).
 We collected one more reference for each of the 500 email threads in the testing set after submission 
 (see Avocado/summaries/one_more_reference.json).
-
-Avocado dataset's copyright is protected by Linguistic Data Consortium. So you need to first download 
-Avocado from LDC and then prepare the data as below.
 
 * First, cd Avocado/
 
