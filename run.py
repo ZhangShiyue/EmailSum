@@ -104,6 +104,7 @@ parser.add_argument("--from_pretrain", action="store_true", help="Load from pret
 parser.add_argument("--pretrained_checkpoint", default=None, type=str, help="Load from pretrained model")
 parser.add_argument("--from_scratch", action="store_true", help="Load from pretrained model")
 parser.add_argument("--test_only", action="store_true", help="Whether only test")
+parser.add_argument("--two_ref", action="store_true", help="Evaluate with two references")
 args = parser.parse_args()
 
 data_dir = args.data_dir
@@ -120,6 +121,7 @@ os.system(f"python3 t5.py --model_type {args.model_type} --model_name_or_path {a
           f"--dev_eval_file {data_dir}/dev.target --dev_source_file {data_dir}/dev.source  "
           f"--test_data_file {data_dir}/test_{args.max_input_length}_{args.max_output_length}.t5 "
           f"--test_eval_file {data_dir}/test.target --test_source_file {data_dir}/test.source "
+          f"{f'--test_eval_file1 {data_dir}/test.target1' if args.two_ref else ''} "
           f"--cache_dir train/cache --max_input_length {args.max_input_length} --do_lower_case "
           f"--min_output_length {args.min_output_length} --max_output_length {args.dec_max_output_length} "
           f"--max_turn_length {args.max_turn_length} "

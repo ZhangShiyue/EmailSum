@@ -316,7 +316,7 @@ def train(args, train_dataset, model, tokenizer, best_ckpt):
 
 
 def evaluate(args, model, dev_data_file, dev_eval_file, dev_source_file, tokenizer,
-             result_file, score_file, global_step=-1, prefix="", test=False):
+             result_file, score_file, global_step=-1, prefix="", test=False, dev_eval_file1=None):
     if args.local_rank in [-1, 0]:
         tb_writer = SummaryWriter(log_dir=args.output_dir, flush_secs=30)
 
@@ -382,7 +382,8 @@ def evaluate(args, model, dev_data_file, dev_eval_file, dev_source_file, tokeniz
         if global_step >= 0:
             tb_writer.add_scalar(key, value, global_step)
 
-    result = score(args, res, dev_eval_file, dev_source_file, result_file, score_file)
+    result = score(args, res, dev_eval_file, dev_source_file, result_file,
+                   score_file, ref_file1=dev_eval_file1)
 
     if test:
         output_eval_file = os.path.join(args.output_dir, prefix, "test_results.txt")
@@ -406,24 +407,34 @@ def detok(ids, preds, batch_size, tokenizer, separate=False):
     return res
 
 
-def score(args, res, ref_file, source_file, result_file, score_file):
+def score(args, res, ref_file, source_file, result_file, score_file, ref_file1=None):
     res = sorted(res, key=lambda x: int(x[0]))
     res = [pred for id, pred in res]
     logger.info(f"***** Write generated summaries to {result_file} *****")
     with open(result_file, 'w') as f:
         f.write('\n'.join(res))
-    logger.info(f"***** Write scores to {score_file} *****")
-    ref = open(ref_file, 'r').readlines()
-    source = open(source_file, 'r').readlines()
-    assert len(res) == len(ref) == len(source)
-    score, score_str = rouge(ref, res)
-    bscore, bscore_str = bertScore(ref, res)
-    escore, escore_str = extScore(source, res)
-    score.update(bscore)
-    score.update(escore)
-    with open(score_file, 'w') as f:
-        f.write(f"{score_str}\n\n{bscore_str}\n\n{escore_str}")
-    return score
+    logger.info(f"***** Write scores to {score_file if not ref_file1 else f'{score_file}.2ref'} *****")
+    final_score = {}
+    for refno, ref_file in enumerate([ref_file, ref_file1] if ref_file1 else [ref_file]):
+        ref = open(ref_file, 'r').readlines()
+        source = open(source_file, 'r').readlines()
+        assert len(res) == len(ref) == len(source)
+        score, score_str = rouge(ref, res)
+        bscore, bscore_str = bertScore(ref, res)
+        escore, escore_str = extScore(source, res)
+        score.update(bscore)
+        score.update(escore)
+        for key in score:
+            if key not in final_score:
+                final_score[key] = []
+            final_score[key].append(score[key])
+    for key in final_score:
+        final_score[key] = np.mean(final_score[key])  # take average
+    res_str = '\n'.join(["%s = %.2f" %
+                         (key, final_score[key]) for key in final_score])
+    with open(f"{score_file}.2ref" if ref_file1 else score_file, 'w') as f:
+        f.write(f"{res_str}")
+    return final_score
 
 
 def main():
@@ -509,6 +520,12 @@ def main():
     )
     parser.add_argument(
         "--test_eval_file",
+        default=None,
+        type=str,
+        help="The dataset file used for testing",
+    )
+    parser.add_argument(
+        "--test_eval_file1",
         default=None,
         type=str,
         help="The dataset file used for testing",
@@ -823,10 +840,11 @@ def main():
             res = evaluate(args, model, args.test_data_file, args.test_eval_file, args.test_source_file,
                            tokenizer, result_file=f"{args.output_dir}/{args.test_res}_{key}.res",
                            score_file=f"{args.output_dir}/{args.test_res}_{key}.score",
-                           prefix=prefix, test=True)
-            test_res[key] = res
+                           prefix=prefix, test=True, dev_eval_file1=args.test_eval_file1)
+            test_res[key] = res[key]
         print(test_res)
-        with open(f"{args.output_dir}/best_ckpt_test.json", 'w') as f:
+        with open(f"{args.output_dir}/best_ckpt_test_2ref.json" if args.test_eval_file1
+                  else f"{args.output_dir}/best_ckpt_test.json", 'w') as f:
             json.dump(test_res, f)
 
 
